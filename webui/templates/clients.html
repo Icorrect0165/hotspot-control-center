@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% from "_macros.html" import client_row %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">Connected Clients</h6>
+        <div>
+            <button class="btn btn-sm btn-primary" id="refreshClients">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="clientTable">
+                <thead>
+                    <tr>
+                        <th>MAC Address</th>
+                        <th>IP Address</th>
+                        <th>Hostname</th>
+                        <th>Bandwidth Limit</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if clients %}
+                        {% for client in clients %}
+                            {{ client_row(client) }}
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center">No clients connected</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Access Control</h6>
+    </div>
+    <div class="card-body">
+        <form id="aclForm">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="macAddress">MAC Address</label>
+                        <input type="text" class="form-control" id="macAddress" 
+                               placeholder="00:1A:2B:3C:4D:5E" pattern="^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Action</label>
+                        <div class="btn-group w-100" role="group">
+                            <button type="button" class="btn btn-success" id="allowBtn">
+                                <i class="fas fa-check"></i> Allow
+                            </button>
+                            <button type="button" class="btn btn-danger" id="blockBtn">
+                                <i class="fas fa-ban"></i> Block
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+        
+        <div class="mt-4">
+            <h6 class="font-weight-bold">Blocked Clients</h6>
+            <ul class="list-group" id="blockedClients">
+                {% if blocked_clients %}
+                    {% for client in blocked_clients %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ client.mac }}
+                            <button class="btn btn-sm btn-outline-success unblock-btn" 
+                                    data-mac="{{ client.mac }}">
+                                <i class="fas fa-unlock"></i> Unblock
+                            </button>
+                        </li>
+                    {% endfor %}
+                {% else %}
+                    <li class="list-group-item">No blocked clients</li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Refresh client list
+    document.getElementById('refreshClients').addEventListener('click', function() {
+        fetch('/api/clients')
+            .then(response => response.json())
+            .then(data => {
+                // Update table with new data
+                const tbody = document.querySelector('#clientTable tbody');
+                tbody.innerHTML = data.clients.length 
+                    ? data.clients.map(client => `
+                        <tr>
+                            <td>${client.mac}</td>
+                            <td>${client.ip}</td>
+                            <td>${client.hostname || 'Unknown'}</td>
+                            <td>
+                                <input type="range" class="form-range bandwidth-slider" 
+                                       min="0" max="100" value="${client.bandwidth || 0}"
+                                       data-mac="${client.mac}">
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-danger block-client" 
+                                        data-mac="${client.mac}">
+                                    <i class="fas fa-ban"></i> Block
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')
+                    : '<tr><td colspan="5" class="text-center">No clients connected</td></tr>';
+                
+                showToast('Client list refreshed', 'success');
+            });
+    });
+
+    // MAC address validation
+    document.getElementById('macAddress').addEventListener('input', function() {
+        this.setCustomValidity(
+            /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/.test(this.value) 
+                ? '' 
+                : 'Invalid MAC address format'
+        );
+    });
+
+    // Manual client blocking/allowing
+    document.getElementById('blockBtn').addEventListener('click', function() {
+        const mac = document.getElementById('macAddress').value;
+        if (!mac) return;
+        
+        fetch('/api/clients/block', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': document.querySelector('meta[name="api-key"]').content
+            },
+            body: JSON.stringify({ mac: mac })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(`Client ${mac} blocked`, 'success');
+                // Add to blocked list
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                listItem.innerHTML = `
+                    ${mac}
+                    <button class="btn btn-sm btn-outline-success unblock-btn" 
+                            data-mac="${mac}">
+                        <i class="fas fa-unlock"></i> Unblock
+                    </button>
+                `;
+                document.getElementById('blockedClients').appendChild(listItem);
+            } else {
+                showToast(data.error || 'Block failed', 'danger');
+            }
+        });
+    });
+
+    // Handle unblock actions
+    document.getElementById('blockedClients').addEventListener('click', function(e) {
+        if (e.target.classList.contains('unblock-btn') || 
+            e.target.closest('.unblock-btn')) {
+            const btn = e.target.classList.contains('unblock-btn') 
+                ? e.target 
+                : e.target.closest('.unblock-btn');
+            const mac = btn.dataset.mac;
+            
+            fetch('/api/clients/unblock', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': document.querySelector('meta[name="api-key"]').content
+                },
+                body: JSON.stringify({ mac: mac })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(`Client ${mac} unblocked`, 'success');
+                    btn.closest('li').remove();
+                } else {
+                    showToast(data.error || 'Unblock failed', 'danger');
+                }
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

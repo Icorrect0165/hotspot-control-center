@@ -1,0 +1,32 @@
+{% macro render_field(field, label=None, class=None) %}
+<div class="form-group mb-3">
+    {% if label %}
+    <label for="{{ field.id }}" class="form-label">{{ label }}</label>
+    {% endif %}
+    {{ field(class=class or 'form-control') }}
+    {% if field.errors %}
+    <div class="invalid-feedback">
+        {{ field.errors[0] }}
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro client_row(client) %}
+<tr>
+    <td>{{ client.mac }}</td>
+    <td>{{ client.ip }}</td>
+    <td>{{ client.hostname or 'Unknown' }}</td>
+    <td>
+        <input type="range" class="form-range bandwidth-slider" 
+               min="0" max="100" value="{{ client.bandwidth or 0 }}"
+               data-mac="{{ client.mac }}">
+    </td>
+    <td>
+        <button class="btn btn-sm btn-danger block-client" 
+                data-mac="{{ client.mac }}">
+            <i class="fas fa-ban"></i> Block
+        </button>
+    </td>
+</tr>
+{% endmacro %}

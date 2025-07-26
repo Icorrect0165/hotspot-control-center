@@ -1,0 +1,58 @@
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+*.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Test and coverage outputs
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+
+# Virtual environment
+/opt/hcc/venv/
+webui/__pycache__/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# OS generated files
+*.swp
+*.swo
+
+# Database and runtime files
+var/db/*.db
+var/log/*.log
+
+# Configs generated at runtime
+etc/hcc/config.ini
+etc/hcc/hostapd.conf
+etc/hcc/dnsmasq.conf
+
+# Installer artifacts
+*.bak
+*.tmp
+
+# Node/npm artifacts (if any frontend work)
+/node_modules/
+npm-debug.log*
+
+# Ignore compiled binaries
+bin/hcc
+bin/hcc-daemon
+
+# Ignore systemd service files
+etc/systemd/hcc.service

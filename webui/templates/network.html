@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_field %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Network Configuration</h6>
+    </div>
+    <div class="card-body">
+        <form id="networkConfigForm">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="ssid">WiFi Name (SSID)</label>
+                        <input type="text" class="form-control" id="ssid" name="ssid" 
+                               value="{{ config.ssid or 'HCC-Hotspot' }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="password" 
+                                   name="password" value="{{ config.password or '' }}" required>
+                            <button class="btn btn-outline-secondary" type="button" 
+                                    id="togglePassword">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <small class="form-text text-muted">Minimum 8 characters</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="max_clients">Maximum Clients</label>
+                        <input type="number" class="form-control" id="max_clients" 
+                               name="max_clients" min="1" max="{{ capabilities.max_clients }}" 
+                               value="{{ config.max_clients or 32 }}" required>
+                        <small class="form-text text-muted">
+                            Hardware supports up to {{ capabilities.max_clients }} clients
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>IP Address Range</label>
+                        <div class="row">
+                            <div class="col">
+                                <input type="text" class="form-control" id="dhcp_start" 
+                                       name="dhcp_start" placeholder="192.168.50.10" 
+                                       value="{{ config.dhcp_start or '192.168.50.10' }}" required>
+                            </div>
+                            <div class="col-auto align-self-center">
+                                <span>to</span>
+                            </div>
+                            <div class="col">
+                                <input type="text" class="form-control" id="dhcp_end" 
+                                       name="dhcp_end" placeholder="192.168.50.200" 
+                                       value="{{ config.dhcp_end or '192.168.50.200' }}" required>
+                            </div>
+                        </div>
+                        <small class="form-text text-muted">
+                            Range must be in same subnet as 192.168.50.1
+                        </small>
+                    </div>
+                    
+                    <div class="form-group mt-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="enable_bandwidth">
+                            <label class="form-check-label" for="enable_bandwidth">
+                                Enable Bandwidth Limiting
+                            </label>
+                        </div>
+                        
+                        <div id="bandwidthSettings" class="mt-2" style="display: none;">
+                            <label for="bandwidth_limit">Bandwidth Limit (Mbps)</label>
+                            <input type="range" class="form-range" id="bandwidth_limit" 
+                                   min="1" max="100" value="20">
+                            <div class="d-flex justify-content-between">
+                                <small>1 Mbps</small>
+                                <small>100 Mbps</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+                <button type="button" class="btn btn-secondary" id="testConnection">
+                    <i class="fas fa-plug"></i> Test Connection
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle password visibility
+    document.getElementById('togglePassword').addEventListener('click', function() {
+        const passwordField = document.getElementById('password');
+        const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordField.setAttribute('type', type);
+        this.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+    });
+
+    // Toggle bandwidth settings
+    document.getElementById('enable_bandwidth').addEventListener('change', function() {
+        document.getElementById('bandwidthSettings').style.display = 
+            this.checked ? 'block' : 'none';
+    });
+
+    // Form submission
+    document.getElementById('networkConfigForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            ssid: document.getElementById('ssid').value,
+            password: document.getElementById('password').value,
+            dhcp_start: document.getElementById('dhcp_start').value,
+            dhcp_end: document.getElementById('dhcp_end').value,
+            max_clients: document.getElementById('max_clients').value,
+            bandwidth_limit: document.getElementById('enable_bandwidth').checked 
+                ? document.getElementById('bandwidth_limit').value 
+                : null
+        };
+
+        fetch('/api/network', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': document.querySelector('meta[name="api-key"]').content
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Configuration saved successfully!', 'success');
+            } else {
+                showToast(data.error || 'Failed to save configuration', 'danger');
+            }
+        })
+        .catch(error => {
+            showToast('Network error: ' + error.message, 'danger');
+        });
+    });
+});
+</script>
+{% endblock %}

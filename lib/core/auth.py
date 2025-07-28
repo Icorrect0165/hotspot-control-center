@@ -4,7 +4,9 @@ import os
 from functools import wraps
 from flask import redirect, session, flash
 
-def init_db(db_path='/opt/hcc/var/db/users.db'):
+DEFAULT_DB_PATH = os.environ.get("HCC_DB_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), "../../var/db/users.db")))
+
+def init_db(db_path=DEFAULT_DB_PATH):
     """Initialize the authentication database"""
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
     conn = sqlite3.connect(db_path)
@@ -23,7 +25,7 @@ def init_db(db_path='/opt/hcc/var/db/users.db'):
     conn.commit()
     conn.close()
 
-def authenticate(username, password, db_path='/opt/hcc/var/db/users.db'):
+def authenticate(username, password, db_path=DEFAULT_DB_PATH):
     """Authenticate a user"""
     try:
         conn = sqlite3.connect(db_path)
@@ -39,7 +41,7 @@ def authenticate(username, password, db_path='/opt/hcc/var/db/users.db'):
         print(f"Authentication error: {e}")
     return False
 
-def update_admin_password(new_password, db_path='/opt/hcc/var/db/users.db'):
+def update_admin_password(new_password, db_path=DEFAULT_DB_PATH):
     """Update the admin password in the database"""
     hashed = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
     conn = sqlite3.connect(db_path)

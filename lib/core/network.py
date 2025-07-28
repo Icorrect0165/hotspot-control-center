@@ -1,9 +1,11 @@
 import configparser
 import subprocess
 from typing import Dict
+import os
+DEFAULT_CONFIG_PATH = os.environ.get("HCC_CONFIG_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), "../../etc/hcc/config.ini")))
 
 class NetworkManager:
-    def __init__(self, config_path='/etc/hcc/config.ini'):
+    def __init__(self, config_path=DEFAULT_CONFIG_PATH):
         self.config_path = config_path
         self.config = configparser.ConfigParser()
         self.config.read(self.config_path)
@@ -74,7 +76,8 @@ wpa_passphrase={password}
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
 max_num_sta={max_clients}"""
-        with open('/etc/hcc/hostapd.conf', 'w') as f:
+        hostapd_path = os.environ.get("HCC_HOSTAPD_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), "../../etc/hcc/hostapd.conf")))
+        with open(hostapd_path, 'w') as f:
             f.write(config)
 
     def _write_dnsmasq_config(self, start: str, end: str):
@@ -82,7 +85,8 @@ max_num_sta={max_clients}"""
         config = f"""interface=wlan0
 dhcp-range={start},{end},12h
 address=/hotspot.login/192.168.50.1"""
-        with open('/etc/hcc/dnsmasq.conf', 'w') as f:
+        dnsmasq_path = os.environ.get("HCC_DNSMASQ_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), "../../etc/hcc/dnsmasq.conf")))
+        with open(dnsmasq_path, 'w') as f:
             f.write(config)
 
     def _restart_services(self):
